@@ -1,13 +1,16 @@
 from os import listdir, path
+
+import librosa
 import numpy as np
 import scipy, cv2, os, sys, argparse, audio
 import json, subprocess, random, string
 from tqdm import tqdm
 from glob import glob
 import torch, face_detection
+
+from common.frameTool import crop_videoandaudio
 from models import Wav2Lip
 import platform
-from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser(description='Inference code to lip-sync videos in the wild using Wav2Lip models')
 
@@ -190,13 +193,13 @@ def main():
 
 	else:
 		video_stream = cv2.VideoCapture(args.face) #捕捉摄像头/视频文件
-		fps = video_stream.get(cv2.CAP_PROP_FPS)
+		fps = video_stream.get(cv2.CAP_PROP_FPS) #获取每秒的帧数
 
 		print('Reading video frames...')
 
 		full_frames = []
 		while 1:
-			still_reading, frame = video_stream.read() #返回帧
+			still_reading, frame = video_stream.read() #返回帧 frame就是每一帧的图像，是个三维矩阵
 			if not still_reading:
 				video_stream.release()
 				break
@@ -213,18 +216,29 @@ def main():
 			frame = frame[y1:y2, x1:x2]
 
 			full_frames.append(frame)
-
-	print ("Number of frames available for inference: "+str(len(full_frames)))
-	plt.imshow(full_frames[0])#展示frame[y1:y2, x1:x2]图片
+	frame_num = len(full_frames)
+	print ("Number of frames available for inference: "+str(frame_num))
+	video_duration = frame_num / fps #视频时长
+	#plt.imshow(full_frames[0])#展示frame[y1:y2, x1:x2]图片
+	#音频判空
+	if not os.path.isfile(args.audio):
+		raise ValueError('--audio argument must be a valid path')
 
 	if not args.audio.endswith('.wav'): #格式转换 用ffmpeg
 		print('Extracting raw audio...')
-		command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
-
-		subprocess.call(command, shell=True)
+		command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav') #暂时存储
+		#try catch一下 这边一般会报错
+		subprocess.call(command, shell=True) #Python3 subprocess模块，执行命令行
 		args.audio = 'temp/temp.wav'
 
-	wav = audio.load_wav(args.audio, 16000)
+	audio_duration = librosa.get_duration(filename=args.audio)
+	#判断音频时长是否一致 裁剪
+	new_audio_path = crop_videoandaudio(video_duration,audio_duration,args.audio)
+	if new_audio_path is not None:
+		args.audio = new_audio_path
+
+	wav = audio.load_wav(args.audio, 16000) #对音频重采样，返回音频时间序列，类型为numpy.ndarray
+
 	mel = audio.melspectrogram(wav)
 	print(mel.shape)
 

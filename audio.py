@@ -1,13 +1,21 @@
 import librosa
 import librosa.filters
 import numpy as np
-# import tensorflow as tf
 from scipy import signal
 from scipy.io import wavfile
 from hparams import hparams as hp
+from matplotlib import pyplot as plt
+
+def draw_wav(wav):
+    plt.figure(figsize=(14, 5))
+    zcrs_init = librosa.feature.zero_crossing_rate(wav)
+    zcrs_times = librosa.frames_to_time(np.arange(len(zcrs_init[0])), sr=16000, hop_length=512)
+    librosa.display.waveplot(wav, sr=16000, alpha=0.7)  # 画出音频波形
+    plt.plot(zcrs_times, zcrs_init[0], label='ZCR', lw=3, color='green')  # 每一帧的过零波形图
+    plt.legend()
 
 def load_wav(path, sr):
-    return librosa.core.load(path, sr=sr)[0]
+    return librosa.core.load(path, sr=sr)[0] #对音频进行重新采样
 
 def save_wav(wav, path, sr):
     wav *= 32767 / max(0.01, np.max(np.abs(wav)))

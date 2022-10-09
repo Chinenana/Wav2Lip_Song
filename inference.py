@@ -7,6 +7,7 @@ from glob import glob
 import torch, face_detection
 from models import Wav2Lip
 import platform
+from matplotlib import pyplot as plt
 
 parser = argparse.ArgumentParser(description='Inference code to lip-sync videos in the wild using Wav2Lip models')
 
@@ -53,6 +54,7 @@ parser.add_argument('--nosmooth', default=False, action='store_true',
 args = parser.parse_args()
 args.img_size = 96
 
+#判断是否是静态图片
 if os.path.isfile(args.face) and args.face.split('.')[1] in ['jpg', 'png', 'jpeg']:
 	args.static = True
 
@@ -187,14 +189,14 @@ def main():
 		fps = args.fps
 
 	else:
-		video_stream = cv2.VideoCapture(args.face)
+		video_stream = cv2.VideoCapture(args.face) #捕捉摄像头/视频文件
 		fps = video_stream.get(cv2.CAP_PROP_FPS)
 
 		print('Reading video frames...')
 
 		full_frames = []
 		while 1:
-			still_reading, frame = video_stream.read()
+			still_reading, frame = video_stream.read() #返回帧
 			if not still_reading:
 				video_stream.release()
 				break
@@ -213,8 +215,9 @@ def main():
 			full_frames.append(frame)
 
 	print ("Number of frames available for inference: "+str(len(full_frames)))
+	plt.imshow(full_frames[0])#展示frame[y1:y2, x1:x2]图片
 
-	if not args.audio.endswith('.wav'):
+	if not args.audio.endswith('.wav'): #格式转换 用ffmpeg
 		print('Extracting raw audio...')
 		command = 'ffmpeg -y -i {} -strict -2 {}'.format(args.audio, 'temp/temp.wav')
 
